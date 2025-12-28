@@ -7,6 +7,9 @@ const { performance } = require("perf_hooks");
 const API_TOKEN = process.env.MATCH_API_TOKEN;
 const BASE_URL = "https://cricket.sportmonks.com/api/v2.0/fixtures";
 
+//localteam,visitorteam,scoreboards,runs,balls,stage,batting,bowling,season,league,referee,firstumpire,secondumpire,tvumpire,manofmatch,manofseries,tosswon,winnerteam,lineup,venue,odds
+
+
 /**
  * Fetch all fixtures (all pages)
  */
