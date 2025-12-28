@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const cronConfig = require('../config/cron');
 const liveMatchService = require('./liveMatchService');
 const fixturesService = require('./fixturesService');
+const teamRankingService = require('./teamRanking');
 const logger = require('../utils/logger');
 
 /**
@@ -37,6 +38,32 @@ const initCronJobs = (io) => {
         }
     });
     logger.info(`Scheduled Fixtures updates with pattern: ${cronConfig.FIXTURES_UPDATE}`);
+
+    // Results Update Job
+    cron.schedule(cronConfig.RESULTS_UPDATE, async () => {
+        try {
+            const success = await fixturesService.updateResults();
+            if (success) {
+                fixturesService.broadcastResults(io);
+            }
+        } catch (error) {
+            logger.error('Error in Fixtures Cron Job:', error);
+        }
+    });
+    logger.info(`Scheduled Results updates with pattern: ${cronConfig.RESULTS_UPDATE}`);
+
+        // Team Ranking Update Job
+    cron.schedule(cronConfig.RANKINGS_UPDATE, async () => {
+        try {
+            const success = await teamRankingService.updateTeamRanking();
+            if (success) {
+                teamRankingService.broadcastUpdates(io);
+            }
+        } catch (error) {
+            logger.error('Error in Team Ranking Cron Job:', error);
+        }
+    });
+    logger.info(`Scheduled Rankings updates with pattern: ${cronConfig.RANKINGS_UPDATE}`);
 };
 
 module.exports = { initCronJobs };

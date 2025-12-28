@@ -1,7 +1,13 @@
 const cache = require('../cache/liveMatches.cache');
 const fixturesCache = require('../cache/fixtures.cache');
-const { MATCH_PREFIX, GLOBAL_LIVE, FIXTURES } = require('../constants/rooms');
+const resultCache = require('../cache/result.cache');
+const { MATCH_PREFIX, GLOBAL_LIVE, FIXTURES, RESULTS, RANKINGS } = require('../constants/rooms');
 const logger = require('../utils/logger');
+const { summariseUpcomingFixtures } = require('../utils/upcomingMatchSummary');
+const { buildLiveMatchesListSummary } = require('../utils/liveMatchSummary');
+const { summariseUpcomingResults } = require('../utils/matchResultSummary');
+const { teamRankingSummary } = require('../utils/teamRankingSummary');
+
 
 module.exports = (io, socket) => {
     
@@ -15,8 +21,9 @@ module.exports = (io, socket) => {
         // Case 1: Joined Global Live Room
         if (roomName === GLOBAL_LIVE) {
             const allMatches = cache.getAll();
+            const summary = buildLiveMatchesListSummary(allMatches);
             if (allMatches.length > 0) {
-                socket.emit('live_matches_summary', allMatches);
+                socket.emit('live_matches_summary', summary);
                 logger.debug(`Sent cached summary to ${socket.id}`);
             }
         }
@@ -24,11 +31,22 @@ module.exports = (io, socket) => {
         // Case 2: Joined Fixtures Room
         if (roomName === FIXTURES) {
             const fixtures = fixturesCache.get();
+            const summary = summariseUpcomingFixtures(fixtures);
             if (fixtures && fixtures.length > 0) {
-                socket.emit('fixtures_data', fixtures);
-                logger.debug(`Sent cached fixtures to ${socket.id}`);
+                socket.emit('upcoming_matches_summary', summary);
+                logger.debug(`Sent cached fixtures summary to ${socket.id}`);
             }
         }
+
+        if (roomName === RESULTS) {
+            const result = resultCache.get();
+            const summary = summariseUpcomingResults(result);
+            if (result && result.length > 0) {
+                socket.emit('upcoming_matches_summary', summary);
+                logger.debug(`Sent cached results summary to ${socket.id}`);
+            }
+        }
+        
 
         // Case 2: Joined Specific Match Room
         if (roomName.startsWith(MATCH_PREFIX)) {
@@ -41,6 +59,15 @@ module.exports = (io, socket) => {
             } else {
                 // Optional: Send a "loading" or "not found" state
                 // socket.emit('match_not_found', { id: matchId });
+            }
+        }
+
+        if (roomName === RANKINGS) {
+            const rankings = resultCache.get();
+            const summary = teamRankingSummary(rankings);
+            if (rankings && rankings.length > 0) {
+                socket.emit('team_ranking_summary', summary);
+                logger.debug(`Sent cached rankings summary to ${socket.id}`);
             }
         }
     });

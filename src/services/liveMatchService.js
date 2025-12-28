@@ -1,12 +1,14 @@
-require('dotenv').config();
+
 const { fetchData } = require('./fetchData');
 const cache = require('../cache/liveMatches.cache');
 const logger = require('../utils/logger');
 const { MATCH_PREFIX, GLOBAL_LIVE } = require('../constants/rooms');
+const { buildLiveMatchesListSummary } = require('../utils/liveMatchSummary');
+const { liveMatchByIdSummary } = require('../utils/liveMatchByIdSummary');
 
 // API Configuration
 // Ideally, these would be in a config file or constructed dynamically
-const API_URL = `https://cricket.sportmonks.com/api/v2.0/livescores?api_token=${process.env.MATCH_API_TOKEN}&include=localteam,visitorteam,runs`;
+const API_URL = `https://cricket.sportmonks.com/api/v2.0/livescores?api_token=${process.env.MATCH_API_TOKEN}&include=league,localteam,visitorteam,balls,runs,bowling,batting,scoreboards,manofmatch,tosswon,firstumpire,secondumpire,venue,lineup,referee,tvumpire`;
 
 // Logic to identify the ID from a match object
 // Adjust this selector based on actual API response structure
@@ -50,20 +52,24 @@ const updateLiveMatches = async () => {
 const broadcastUpdates = (io) => {
     const matches = cache.getAll();
 
+    const summary = buildLiveMatchesListSummary(matches); 
+
     // 1. Broadcast Summary to Global Live Room (e.g. for a list view)
     // We might want to send a lighter version here, but sending all for now.
-    io.to(GLOBAL_LIVE).emit('live_matches_summary', matches);
+    io.to(GLOBAL_LIVE).emit('live_matches_summary', summary);
 
     // 2. Broadcast Individual Match Data to Specific Rooms
     matches.forEach(match => {
         const id = getMatchId(match);
         const roomName = `${MATCH_PREFIX}${id}`;
+
+        const summary = liveMatchByIdSummary(match);
         
         // Emitting data only to the specific room
         // Optimization: io.sockets.adapter.rooms.get(roomName) to check if anyone is listening
         // requires io.of("/").adapter... 
         // For standard socket.io:
-        io.to(roomName).emit('match_data', match);
+        io.to(roomName).emit('match_data', summary);
     });
 
     logger.debug(`Broadcasted updates to ${matches.length} match rooms and global room.`);

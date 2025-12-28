@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const axios = require('axios');
 
 /**
  * Fetches data from a URL with a timeout.
@@ -8,22 +9,15 @@ const logger = require('../utils/logger');
  */
 const fetchData = async (url, timeoutMs = 10000) => {
     try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-        const response = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeout);
-
-        if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
-        }
-
-        return await response.json();
+        const response = await axios.get(url, { timeout: timeoutMs });
+        return response.data;
     } catch (error) {
-        if (error.name === 'AbortError') {
+        if (error.code === 'ECONNABORTED') {
             logger.error(`Fetch aborted for ${url} (timeout)`);
+        } else if (error.response) {
+            logger.error(`HTTP Error fetching ${url}: ${error.response.status} ${error.response.statusText || ''}`);
         } else {
-            logger.error(`Error fetching ${url}:`, error.message);
+            logger.error(`Error fetching ${url}: ${error.message}`);
         }
         return null; // Return null so the caller handles it gracefully
     }
